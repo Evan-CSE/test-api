@@ -10,7 +10,6 @@ async function main() {
         })
         .then(() => console.log('Connected to mongodb'));
         APP.listen(config.PORT, () => {
-            console.log(`inside app`)
             console.log(`Listening on port: ${config.PORT}`);
         })
     } catch (err) {
