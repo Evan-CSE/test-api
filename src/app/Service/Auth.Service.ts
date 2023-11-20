@@ -1,5 +1,5 @@
-import { UserDTO } from "./Auth.Interface"
-import { authUserModel } from "./Auth.Model"
+import { UserDTO } from "../Interface/Auth.Interface"
+import { authUserModel } from "../Model/Auth.Model"
 
 
 const createUser = async (user: UserDTO) => {

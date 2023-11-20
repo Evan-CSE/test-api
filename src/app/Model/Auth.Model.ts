@@ -1,10 +1,11 @@
 import { Schema, model } from "mongoose";
-import { UserDTO } from "./Auth.Interface";
+import { UserDTO } from "../Interface/Auth.Interface";
 
 const authUserSchema = new Schema <UserDTO>({
-    id:                {type: Number, required: true},
+    userName:          {type: String, required: true},
     email:             {type: String, required: true},
-    persmissionLevels: {type: Array}
+    verified:          {type: Boolean, default: false},
+    persmissionLevels: []
 });
 
 export const authUserModel = model<UserDTO>('UserTest', authUserSchema);

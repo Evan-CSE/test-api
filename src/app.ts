@@ -1,6 +1,5 @@
 import express, { Request, Response, Application } from 'express';
-import config from './app/config';
-import { AuthRouter } from './app/Auth/Auth.Route';
+import { AuthRouter } from './app/Routes/Auth.Route';
 
 const APP: Application = express();
 
