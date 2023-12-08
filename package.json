@@ -8,7 +8,8 @@
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "run": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "s3cr3t": "node ./src/server2.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "mongodb": "6.2",
     "mongoose": "^8.0.1",
     "nodemailer": "^6.9.7",
+    "static-crypto": "^1.2.0",
     "ts-node-dev": "^2.0.0"
   },
   "devDependencies": {
