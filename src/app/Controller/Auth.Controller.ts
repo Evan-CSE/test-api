@@ -5,21 +5,32 @@ import { Validator } from "../Utitilities/CommonHelper/Validator";
 import { HttpResponseHandler } from "../Utitilities/CommonHelper/HTTPResponseHandler";
 import { AuthMailer } from "../Service/AuthMailer";
 import { commonMessage } from "../Utitilities/CommonMessage";
+import { generatePasswordHash, generateToken } from "../Utitilities/HelperMethods";
+import AuthModel from "../Model/Auth.Model";
+import bcrypt from 'bcrypt';
+import { UserSession } from "../Model/UserSession.Model";
+import { PermissionLevel } from "../Model/PermissionLevel";
 
 const loginRequest = async (req: Request, res: Response) => {
     try {
-        const user: UserDTO | any = await authService.loginRequest(req.body);
-
+        const userDto: AuthModel  = req.body;
+        const user: UserDTO | any = await authService.loginRequest(userDto);
+        const password            = user?.password;
+      
         if (!!user) {
-            !user?.verified
-                ? HttpResponseHandler.forbidden(res, 'Please verify your email first to log into the account')
-                : HttpResponseHandler.successfulResponse(res, 'Login successful', user);
+            const correctPassword = await bcrypt.compare(userDto.password, password);
+
+            const userSessionToken: UserSession = generateToken(user);
+
+            !user?.verified || !correctPassword
+                ? HttpResponseHandler.forbidden(res, 'Your mail is not verified or you provided a wrong password')
+                : HttpResponseHandler.successfulResponse(res, 'Login successful', userSessionToken);
         } else {
-            HttpResponseHandler.badRequest(res);
+            HttpResponseHandler.badRequest(res, "User not found with the credentials");
         }
     } catch (err) {
         console.log(err);
-        HttpResponseHandler.badRequest(res);
+        HttpResponseHandler.badRequest(res, err);
     }
 }
 
@@ -39,7 +50,9 @@ const isEmailAlreadyRegistered = async (email: string): Promise<boolean> => {
 const createUser = async (req: Request, res: Response) => {
     try {
         const userDto: UserDTO = req.body;
+        const hashedPass       = await generatePasswordHash(userDto.password);
 
+        userDto.password          = hashedPass;
         userDto.verified          = false;
         userDto.persmissionLevels = [];
         userDto.verificationToken = crypto.randomUUID();
@@ -87,8 +100,42 @@ const verifyAccount = async (req: Request, res: Response) => {
     }
 }
 
+const getSignal = async (req: Request, res: Response) => {
+    const {userEmail}       = (req as any).user;
+    const updatedUser       = await authService.getUserByEmail(userEmail);
+    const persmissionLevels = (updatedUser as UserDTO).persmissionLevels;
+
+    console.log(updatedUser)
+    if (persmissionLevels && persmissionLevels.includes(PermissionLevel.PaidMember)) {
+        HttpResponseHandler.successfulResponse(res, "Please wait for signal");
+    } else {
+        HttpResponseHandler.forbidden(res, "You need to be a paid member to view this page");
+    }
+}
+
+const addPaidUserByMail = async (req: Request, res: Response) => {
+    try {
+        const {userEmail}       = (req as any).user;
+        const updatedUser       = await authService.getUserByEmail(userEmail);
+        const persmissionLevels = (updatedUser as UserDTO).persmissionLevels;
+        
+        if (persmissionLevels && persmissionLevels.includes(PermissionLevel.RootUser)) {
+            const {password, ...result} = await authService.addPaidUserByMail(req.params.email) as any;
+            if (!!result) {
+               HttpResponseHandler.successfulResponse(res, "Paid Member added successfully", result);
+            }
+        } else {
+            HttpResponseHandler.forbidden(res, "You are unauthorized to view this page");
+        }
+    } catch (err) {
+        HttpResponseHandler.internalServerError(res, err as string);
+    }
+}
+
 export const AuthController = {
     loginRequest,
     createUser,
-    verifyAccount
+    verifyAccount,
+    getSignal,
+    addPaidUserByMail
 };

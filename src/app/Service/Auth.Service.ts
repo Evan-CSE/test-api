@@ -24,7 +24,7 @@ const emailAlreadyRegistered = async (email: string): Promise<boolean> => {
 
 const loginRequest = async (user: AuthModel) => {
     try {
-        const result = await userModel.findOne({email: user.email, password: user.password});
+        const result = await userModel.findOne({email: user.email});
         return result;
     } catch (err) {
         console.log(err);
@@ -63,9 +63,45 @@ const verifyAccount = async (token: string) => {
     }
 }
 
+const addPaidUserByMail = async (email: string) => {
+    try {
+        const user = await userModel.findOneAndUpdate({ email: email }, {
+          $push: { persmissionLevels: 2},
+        }, { new: true });
+    
+        if (!user) {
+          console.log('User not found');
+          return null;
+        }
+        console.log('Added permission level for user:', user.email);
+        return user;
+      } catch (error) {
+        console.error('Error adding paid user:', error);
+        return error;
+      }
+}
+
+const getUserByEmail = async (email: string) => {
+    try {
+        const user = await userModel.findOne({ email: email});
+    
+        if (!user) {
+          console.log('User not found');
+          return null;
+        }
+        return user;
+
+      } catch (error) {
+        console.error('Error while finding user', error);
+        return error;
+      }
+}
+
 export const authService = {
     createUser,
     emailAlreadyRegistered,
     loginRequest,
-    verifyAccount
+    verifyAccount,
+    addPaidUserByMail,
+    getUserByEmail
 };
