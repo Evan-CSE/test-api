@@ -1,14 +1,27 @@
 import { Request, Response } from "express";
 import { authService } from "../Service/Auth.Service";
 import { UserDTO } from "../Interface/Auth.Interface";
-import { Validator } from "../CommonHelper/Validator";
-import { HttpResponseHandler } from "../CommonHelper/HTTPResponseHandler";
+import { Validator } from "../Utitilities/CommonHelper/Validator";
+import { HttpResponseHandler } from "../Utitilities/CommonHelper/HTTPResponseHandler";
 import { AuthMailer } from "../Service/AuthMailer";
+import { commonMessage } from "../Utitilities/CommonMessage";
 
-const loginRequest =
-    (req: Request, res: Response) => {
-        res.send('<h1> User logged in </h1>');
+const loginRequest = async (req: Request, res: Response) => {
+    try {
+        const user: UserDTO | any = await authService.loginRequest(req.body);
+
+        if (!!user) {
+            !user?.verified
+                ? HttpResponseHandler.forbidden(res, 'Please verify your email first to log into the account')
+                : HttpResponseHandler.successfulResponse(res, 'Login successful', user);
+        } else {
+            HttpResponseHandler.badRequest(res);
+        }
+    } catch (err) {
+        console.log(err);
+        HttpResponseHandler.badRequest(res);
     }
+}
 
 const isValidUserInfo = (userInfo: UserDTO) : boolean => {
     return (
@@ -17,24 +30,46 @@ const isValidUserInfo = (userInfo: UserDTO) : boolean => {
     );
 }
 
+const isEmailAlreadyRegistered = async (email: string): Promise<boolean> => {
+    const maybeUserExist = await authService.emailAlreadyRegistered(email);
+    return maybeUserExist;
+}
+
+
 const createUser = async (req: Request, res: Response) => {
     try {
         const userDto: UserDTO = req.body;
-        
-        // TODO: also check if this email is registered
+
+        userDto.verified          = false;
+        userDto.persmissionLevels = [];
+        userDto.verificationToken = crypto.randomUUID();
+
+        if (await isEmailAlreadyRegistered(userDto.email)) {
+
+            // we don't want to reveal the info that if specific email is already being registered
+            // this prevents user/email enumeration
+            const {password, verificationToken, ...result} = userDto;
+            return HttpResponseHandler.successfulResponse(res, commonMessage.verifyYourMail, result);
+        }
         if (!isValidUserInfo(userDto)) {
             return HttpResponseHandler.badRequest(res);
         }
 
-        const result  = await authService.createUser(userDto);
-        await AuthMailer.sendEmail(userDto.email, '<h1>Verify the mail to continue</h1>', '<h1> okay </h1');
-        console.log("\n\nVerification mail sent");
+        const result = await authService.createUser(userDto);
+
+        const {password, ...responseData} = userDto;
+
+        await AuthMailer.sendEmail(userDto.email, 
+            '<h1>Verify the mail to continue</h1>',
+            `<a href = 'localhost:6622/auth/verify/${userDto.verificationToken}> Click to verify </a>`
+            );
 
         HttpResponseHandler.successfulResponse(
             res,
-            'User creation successful',
-            result
+            commonMessage.verifyYourMail,
+            responseData   
         )
+
     } catch (err: any) {
         HttpResponseHandler.internalServerError(
             res,
@@ -43,7 +78,17 @@ const createUser = async (req: Request, res: Response) => {
     }
 }
 
+const verifyAccount = async (req: Request, res: Response) => {
+    try {
+        const user = authService.verifyAccount(req.params.token);
+        HttpResponseHandler.successfulResponse(res, 'Successfully verified');
+    } catch (error) {
+        HttpResponseHandler.successfulResponse(res, 'Successfully verified');
+    }
+}
+
 export const AuthController = {
     loginRequest,
-    createUser
+    createUser,
+    verifyAccount
 };
