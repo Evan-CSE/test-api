@@ -44,18 +44,22 @@ const updateUserInfo = async (user: UserDTO | any) => {
 }
 
 const verifyAccount = async (token: string) => {
+    const session = userModel.startSession();
+
     try {
-        const result = await userModel.findOne({verificationToken: token});
-        if (result) {
-            result.verificationToken = '';
-            result.verified = true;
-        }
-
-        await updateUserInfo(result);
-
-        return result;
+        (await session).withTransaction(async () => {
+            const result = await userModel.findOne({verificationToken: token});
+            if (result) {
+                result.verificationToken = '';
+                result.verified = true;
+            }
+            await updateUserInfo(result);
+            return result;
+        })
     } catch (error) {
         return error;
+    } finally {
+        (await session).endSession();
     }
 }
 
